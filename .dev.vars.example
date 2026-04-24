@@ -1,0 +1,8 @@
+FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/replace-me
+FEISHU_SECRET=replace-me
+MANUAL_TRIGGER_TOKEN=replace-me
+TENCENT_COS_SECRET_ID=replace-me
+TENCENT_COS_SECRET_KEY=replace-me
+TENCENT_COS_BUCKET=replace-me
+TENCENT_COS_REGION=replace-me
+TENCENT_COS_BASE_URL=https://replace-me.example.com
