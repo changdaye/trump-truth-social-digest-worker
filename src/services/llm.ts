@@ -2,6 +2,17 @@ import type { BriefConfig } from "../types";
 
 const SYSTEM_PROMPT = `你是一名中文资讯摘要编辑。请把特朗普 Truth Social 原帖整理成简明中文。输出 JSON，必须包含 summary 和 items 两个字段。items 内每条必须包含 translatedText、topicTags、interpretation。translatedText 必须尽量贴近原意，且不要输出英文原文。`;
 
+export interface LlmDigestItem {
+  translatedText: string;
+  topicTags: string[];
+  interpretation: string;
+}
+
+export interface LlmDigestResult {
+  summary: string;
+  items: LlmDigestItem[];
+}
+
 export async function analyzePostsWithLLM(config: BriefConfig, ai: Ai, sourceText: string): Promise<string> {
   const result = await ai.run(config.llmModel, {
     messages: [
@@ -18,4 +29,20 @@ export async function analyzePostsWithLLM(config: BriefConfig, ai: Ai, sourceTex
   }
 
   return content;
+}
+
+export function parseLlmDigestResponse(content: string): LlmDigestResult {
+  const parsed = JSON.parse(content) as Partial<LlmDigestResult>;
+  if (!parsed.summary || !Array.isArray(parsed.items)) {
+    throw new Error("Workers AI returned invalid digest JSON");
+  }
+
+  return {
+    summary: parsed.summary,
+    items: parsed.items.map((item) => ({
+      translatedText: item?.translatedText?.trim() || "内容待补充",
+      topicTags: Array.isArray(item?.topicTags) ? item.topicTags.map((tag) => String(tag)).filter(Boolean) : [],
+      interpretation: item?.interpretation?.trim() || "解读待补充"
+    }))
+  };
 }

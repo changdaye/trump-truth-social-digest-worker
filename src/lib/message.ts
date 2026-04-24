@@ -1,4 +1,5 @@
 import { truncate } from "./value";
+import type { RuntimeState } from "./runtime";
 
 export interface DigestMessageItem {
   translatedText: string;
@@ -31,6 +32,26 @@ export function buildFallbackMessage(items: DigestMessageItem[], reportUrl: stri
 
   lines.push("", "详细版报告:", reportUrl);
   return limitMessage(lines.join("\n").trim());
+}
+
+export function buildHeartbeatMessage(state: RuntimeState, intervalHours: number): string {
+  return [
+    "💓 Trump Truth Social Digest Worker 心跳",
+    `心跳间隔: ${intervalHours}h`,
+    `上次成功: ${state.lastSuccessAt ?? "无"}`,
+    `连续失败: ${state.consecutiveFailures}`,
+    `最近错误: ${state.lastError ?? "无"}`
+  ].join("\n");
+}
+
+export function buildFailureAlertMessage(state: RuntimeState, threshold: number): string {
+  return [
+    "🚨 Trump Truth Social Digest Worker 异常告警",
+    `连续失败: ${state.consecutiveFailures}`,
+    `告警阈值: ${threshold}`,
+    `上次成功: ${state.lastSuccessAt ?? "无"}`,
+    `最近错误: ${state.lastError ?? "unknown"}`
+  ].join("\n");
 }
 
 function limitMessage(text: string): string {
