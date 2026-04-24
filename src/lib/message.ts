@@ -11,18 +11,21 @@ export interface DigestMessageItem {
 const MAX_MESSAGE_LENGTH = 2600;
 
 export function buildDigestMessage(summary: string, hotTerms: string[], items: DigestMessageItem[], reportUrl: string): string {
-  const lines = ["一、本轮他说了什么", summary.trim()];
+  const lines = ["特朗普 Truth Social 简报", "", summary.trim()];
 
   if (hotTerms.length > 0) {
-    lines.push("", "二、高频词", hotTerms.slice(0, 6).join(" / "));
+    lines.push("", `高频词：${hotTerms.slice(0, 6).join(" / ")}`);
   }
 
-  lines.push("", hotTerms.length > 0 ? "三、重点原话（中文转述）" : "二、重点原话（中文转述）");
+  const compressed = items
+    .slice(0, 5)
+    .map((item) => item.translatedText.trim())
+    .filter(Boolean)
+    .map((text, index) => `${index + 1}）${truncate(text, 120)}`)
+    .join("；");
 
-  for (const [index, item] of items.slice(0, 4).entries()) {
-    lines.push(`${index + 1}. 他说：${truncate(item.translatedText, 150)}`);
-    if (item.topicTags.length > 0) lines.push(`   关键词：${item.topicTags.join(" / ")}`);
-    lines.push(`   看点：${truncate(item.interpretation, 70)}`);
+  if (compressed) {
+    lines.push("", `重点整理：${compressed}`);
   }
 
   lines.push("", "详细版报告:", reportUrl);
@@ -30,11 +33,21 @@ export function buildDigestMessage(summary: string, hotTerms: string[], items: D
 }
 
 export function buildFallbackMessage(items: DigestMessageItem[], reportUrl: string): string {
-  const lines = ["说明: AI 中文整理暂不可用，以下为基础中文摘要", "", "重点帖子："];
+  const compressed = items
+    .slice(0, 5)
+    .map((item) => item.translatedText.trim())
+    .filter(Boolean)
+    .map((text, index) => `${index + 1}）${truncate(text, 80)}`)
+    .join("；");
 
-  for (const [index, item] of items.slice(0, 5).entries()) {
-    lines.push(`${index + 1}. ${truncate(item.translatedText, 90)}`);
-    lines.push(`   标签: ${item.topicTags.join(" / ") || "待补充"}`);
+  const lines = [
+    "特朗普 Truth Social 简报",
+    "",
+    "说明：AI 中文整理暂不可用，以下为基础摘要。"
+  ];
+
+  if (compressed) {
+    lines.push("", `重点整理：${compressed}`);
   }
 
   lines.push("", "详细版报告:", reportUrl);

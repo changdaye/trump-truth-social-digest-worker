@@ -1,5 +1,6 @@
 export interface DetailedReportItem {
   id: string;
+  originalText: string;
   translatedText: string;
   topicTags: string[];
   interpretation: string;
@@ -15,7 +16,7 @@ export function buildDetailedReport(summary: string, items: DetailedReportItem[]
     "",
     `- 生成时间: ${now.toISOString()}`,
     `- 条目数量: ${items.length}`,
-    "- 数据来源: Truth Social 公开网页",
+    "- 数据来源: Truth Social 公开网页 / 第三方公开归档源",
     "- AI 说明: 中文翻译/标签/一句话解读由 Workers AI 生成",
     "",
     "## 本时段摘要",
@@ -28,7 +29,10 @@ export function buildDetailedReport(summary: string, items: DetailedReportItem[]
 
   items.forEach((item, index) => {
     lines.push(`### ${index + 1}. 帖文 ${item.id}`);
-    lines.push(`- 中文翻译/转述: ${item.translatedText}`);
+    lines.push("- 英文原文:");
+    lines.push(item.originalText || "[无可用原文文本]");
+    lines.push("- 中文直译/转述:");
+    lines.push(item.translatedText);
     lines.push(`- 主题标签: ${item.topicTags.join(" / ")}`);
     lines.push(`- 一句话解读: ${item.interpretation}`);
     lines.push(`- 发布时间: ${item.publishedAt}`);

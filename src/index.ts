@@ -84,7 +84,8 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
 
   try {
     const { candidates, items } = await deps.fetchTruthSocialPosts(config, {
-      hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id)
+      hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id),
+      now: () => now
     });
 
     if (items.length === 0) {
@@ -100,12 +101,14 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
     const preparedSourceText = JSON.stringify(items);
     let aiAnalysis = true;
     let summary: string;
+    let hotTerms: string[] = [];
     let digestItems: LlmDigestItem[];
 
     try {
       const aiResponse = await deps.analyzePostsWithLLM(config, env.AI, preparedSourceText);
       const parsed = deps.parseLlmDigestResponse(aiResponse);
       summary = parsed.summary;
+      hotTerms = parsed.hotTerms;
       digestItems = items.map((item, index) => ({
         translatedText: parsed.items[index]?.translatedText || `新帖已抓取（${item.publishedAt}）`,
         topicTags: parsed.items[index]?.topicTags ?? [],
@@ -118,14 +121,15 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
       digestItems = items.map((item) => ({
         translatedText: `新帖已抓取，发布时间 ${item.publishedAt}。`,
         topicTags: ["待补充"],
-        interpretation: "AI 暂不可用，详细解读待补充。"
+        interpretation: "AI 暂不可用，详细解读待补充。",
+        publishedAt: item.publishedAt
       }));
     }
 
     const report = buildDetailedReport(summary, mergeReportItems(items, digestItems), now);
     const uploaded = await deps.uploadDetailedReportToCos(config, report, now);
     const message = aiAnalysis
-      ? buildDigestMessage(summary, digestItems, uploaded.url)
+      ? buildDigestMessage(summary, hotTerms.length > 0 ? hotTerms : computeHotTerms(digestItems), digestItems.map((item, index) => ({ ...item, publishedAt: items[index]?.publishedAt })), uploaded.url)
       : buildFallbackMessage(digestItems, uploaded.url);
 
     const runId = crypto.randomUUID();
@@ -204,9 +208,20 @@ export async function buildHealthResponse(env: Env, deps: Pick<RuntimeDeps, "get
   };
 }
 
+function computeHotTerms(items: LlmDigestItem[]): string[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    for (const tag of item.topicTags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([term]) => term);
+}
+
 function mergeReportItems(items: TruthNormalizedPost[], digestItems: LlmDigestItem[]) {
   return items.map((item, index) => ({
     id: item.id,
+    originalText: item.bodyText,
     translatedText: digestItems[index]?.translatedText || "内容待补充",
     topicTags: digestItems[index]?.topicTags ?? [],
     interpretation: digestItems[index]?.interpretation || "解读待补充",

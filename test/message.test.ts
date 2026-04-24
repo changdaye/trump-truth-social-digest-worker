@@ -4,25 +4,30 @@ import { buildDetailedReport, buildDetailedReportObjectKey } from "../src/lib/re
 
 const items = [{
   id: "114389703123456789",
+  originalText: "MAKE AMERICA GREAT AGAIN!",
   translatedText: "让美国再次伟大！",
   topicTags: ["选举"],
   interpretation: "这条帖是在强化竞选口号。",
   publishedAt: "2026-04-24T02:00:00.000Z",
-  canonicalUrl: "https://truthsocialapp.com/@realDonaldTrump/posts/114389703123456789"
+  canonicalUrl: "https://truthsocial.com/@realDonaldTrump/posts/114389703123456789"
 }];
 
 describe("message formatting", () => {
-  it("includes summary, bullet point, and report url", () => {
-    const message = buildDigestMessage("本时段特朗普继续聚焦竞选表达。", items, "https://example.com/report.md");
-    expect(message).toContain("本时段特朗普继续聚焦竞选表达");
+  it("builds a compressed summary-style Feishu message", () => {
+    const message = buildDigestMessage("本时段特朗普继续聚焦竞选表达。", ["选举", "竞选口号"], items, "https://example.com/report.md");
+    expect(message).toContain("特朗普 Truth Social 简报");
+    expect(message).toContain("高频词：选举 / 竞选口号");
+    expect(message).toContain("重点整理：1）让美国再次伟大");
     expect(message).toContain("详细版报告");
-    expect(message).toContain("选举");
+    expect(message).not.toContain("他说：");
   });
 
-  it("renders translated post details in the markdown report", () => {
+  it("renders english original text and chinese translation in the markdown report", () => {
     const report = buildDetailedReport("摘要", items, new Date("2026-04-24T04:00:00.000Z"));
+    expect(report).toContain("英文原文");
+    expect(report).toContain("MAKE AMERICA GREAT AGAIN");
+    expect(report).toContain("中文直译/转述");
     expect(report).toContain("让美国再次伟大");
-    expect(report).toContain("主题标签");
     expect(report).toContain("原帖链接");
   });
 

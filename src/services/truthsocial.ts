@@ -20,30 +20,32 @@ export interface TruthNormalizedPost {
 export interface TruthSocialConfig {
   trumpTruthFeedUrl: string;
   maxPostsPerDigest: number;
+  fetchWindowHours: number;
 }
 
 export interface TruthSocialFetchDeps {
   hasProcessedPost: (id: string) => Promise<boolean>;
   feedLoader?: (feedUrl: string) => Promise<string>;
+  now?: () => Date;
 }
 
 export function extractCandidatePosts(xml: string): TruthCandidatePost[] {
   const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
 
   return items.map((itemXml) => {
-    const title = cleanText(extractTagContent(itemXml, 'title'));
-    const descriptionHtml = extractTagContent(itemXml, 'description');
+    const title = cleanText(extractTagContent(itemXml, "title"));
+    const descriptionHtml = extractTagContent(itemXml, "description");
     const descriptionText = cleanText(stripHtml(descriptionHtml));
-    const originalUrl = cleanText(extractNamespacedTagContent(itemXml, 'originalUrl'));
-    const originalId = cleanText(extractNamespacedTagContent(itemXml, 'originalId')) || extractPostId(originalUrl);
-    const publishedAt = toIsoDate(cleanText(extractTagContent(itemXml, 'pubDate')));
+    const originalUrl = cleanText(extractNamespacedTagContent(itemXml, "originalUrl"));
+    const originalId = cleanText(extractNamespacedTagContent(itemXml, "originalId")) || extractPostId(originalUrl);
+    const publishedAt = toIsoDate(cleanText(extractTagContent(itemXml, "pubDate")));
     const bodyText = descriptionText || normalizeNoTitle(title);
     const isRepost = /^RT:/i.test(descriptionText) || /\bRT:\s*https?:\/\//i.test(descriptionText);
 
     return {
       postId: originalId,
       canonicalUrl: originalUrl,
-      authorHandle: '@realDonaldTrump',
+      authorHandle: "@realDonaldTrump",
       bodyText,
       publishedAt,
       isReply: false,
@@ -71,9 +73,13 @@ export async function fetchTruthSocialPosts(config: TruthSocialConfig, deps: Tru
   const candidates = extractCandidatePosts(xml);
   const normalized = await Promise.all(candidates.map(normalizeTruthPost));
   const items: TruthNormalizedPost[] = [];
+  const now = deps.now?.() ?? new Date();
+  const cutoff = now.getTime() - config.fetchWindowHours * 60 * 60 * 1000;
 
   for (const item of normalized) {
     if (!item.isOriginal) continue;
+    const publishedAtMs = Date.parse(item.publishedAt);
+    if (!Number.isNaN(publishedAtMs) && publishedAtMs < cutoff) continue;
     if (await deps.hasProcessedPost(item.id)) continue;
     items.push(item);
     if (items.length >= config.maxPostsPerDigest) break;
@@ -84,7 +90,7 @@ export async function fetchTruthSocialPosts(config: TruthSocialConfig, deps: Tru
 
 async function defaultFeedLoader(feedUrl: string): Promise<string> {
   const response = await fetch(feedUrl, {
-    headers: { 'user-agent': 'Mozilla/5.0' }
+    headers: { "user-agent": "Mozilla/5.0" }
   });
   if (!response.ok) {
     throw new Error(`Trump's Truth feed fetch failed: HTTP ${response.status}`);
@@ -93,35 +99,35 @@ async function defaultFeedLoader(feedUrl: string): Promise<string> {
 }
 
 function extractTagContent(itemXml: string, tagName: string): string {
-  const cdata = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tagName}>`, 'i').exec(itemXml);
+  const cdata = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tagName}>`, "i").exec(itemXml);
   if (cdata) return cdata[1];
-  const plain = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, 'i').exec(itemXml);
-  return plain?.[1] ?? '';
+  const plain = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "i").exec(itemXml);
+  return plain?.[1] ?? "";
 }
 
 function extractNamespacedTagContent(itemXml: string, tagName: string): string {
-  const match = new RegExp(`<truth:${tagName}>([\\s\\S]*?)<\\/truth:${tagName}>`, 'i').exec(itemXml);
-  return match?.[1] ?? '';
+  const match = new RegExp(`<truth:${tagName}>([\\s\\S]*?)<\\/truth:${tagName}>`, "i").exec(itemXml);
+  return match?.[1] ?? "";
 }
 
 function stripHtml(value: string): string {
-  return decodeHtml(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return decodeHtml(value).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function cleanText(value: string): string {
   return decodeHtml(value)
-    .replace(/<!\[CDATA\[|\]\]>/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function normalizeNoTitle(title: string): string {
-  return /^\[No Title\]/i.test(title) ? '' : title;
+  return /^\[No Title\]/i.test(title) ? "" : title;
 }
 
 function extractPostId(url: string): string {
   const match = /\/([0-9]{6,})$/.exec(url);
-  return match?.[1] ?? '';
+  return match?.[1] ?? "";
 }
 
 function toIsoDate(value: string): string {
@@ -131,12 +137,12 @@ function toIsoDate(value: string): string {
 
 function decodeHtml(value: string): string {
   return value
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#x2019;/gi, '’')
-    .replace(/&#8217;/g, '’');
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x2019;/gi, "’")
+    .replace(/&#8217;/g, "’");
 }

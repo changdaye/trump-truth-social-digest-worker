@@ -59,10 +59,11 @@ describe("Truth Social extraction", () => {
     `;
 
     const result = await fetchTruthSocialPosts(
-      { trumpTruthFeedUrl: "https://trumpstruth.org/feed", maxPostsPerDigest: 10 },
+      { trumpTruthFeedUrl: "https://trumpstruth.org/feed", maxPostsPerDigest: 10, fetchWindowHours: 2 },
       {
         feedLoader: async () => xml,
-        hasProcessedPost: async (id) => id === "333"
+        hasProcessedPost: async (id) => id === "333",
+        now: () => new Date("2026-04-24T06:00:00.000Z")
       }
     );
 
@@ -70,4 +71,29 @@ describe("Truth Social extraction", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.id).toBe("111");
   });
+  it("drops posts older than the fetch window", async () => {
+    const xml = `
+      <rss><channel>
+        <item>
+          <title><![CDATA[Old post]]></title>
+          <description><![CDATA[<p>Old post</p>]]></description>
+          <pubDate>Thu, 24 Apr 2026 00:00:00 +0000</pubDate>
+          <truth:originalUrl>https://truthsocial.com/@realDonaldTrump/999</truth:originalUrl>
+          <truth:originalId>999</truth:originalId>
+        </item>
+      </channel></rss>
+    `;
+
+    const result = await fetchTruthSocialPosts(
+      { trumpTruthFeedUrl: "https://trumpstruth.org/feed", maxPostsPerDigest: 10, fetchWindowHours: 2 },
+      {
+        feedLoader: async () => xml,
+        hasProcessedPost: async () => false,
+        now: () => new Date("2026-04-24T06:00:00.000Z")
+      }
+    );
+
+    expect(result.items).toHaveLength(0);
+  });
+
 });
