@@ -84,7 +84,7 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
 
   try {
     const { candidates, items } = await deps.fetchTruthSocialPosts(config, {
-      fetcher: fetch,
+      fetcher: (input, init) => globalThis.fetch(input, init),
       hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id)
     });
 
