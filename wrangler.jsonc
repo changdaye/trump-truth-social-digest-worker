@@ -3,6 +3,7 @@
 	"name": "trump-truth-social-digest-worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-04-24",
+	"account_id": "d66336592b3f62650da1e5fa60e4a28c",
 	"workers_dev": true,
 	"preview_urls": false,
 	"observability": {
@@ -16,8 +17,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "RUNTIME_KV",
-			"id": "e2c06df95a7f45bfae27ee5c79b3bf29",
-			"preview_id": "1b1576e8d8924659855587dcf8256a15"
+			"id": "daf66a68882342f2a008b37df68b0b87",
+			"preview_id": "daf66a68882342f2a008b37df68b0b87"
 		}
 	],
 	"ai": {
@@ -27,7 +28,7 @@
 		{
 			"binding": "BRIEF_DB",
 			"database_name": "trump-truth-social-digest",
-			"database_id": "a522c64e-6506-43a8-a821-90081179f559",
+			"database_id": "28bf8861-1a7e-4a78-b747-9d4d3684dad1",
 			"migrations_dir": "migrations"
 		}
 	],
