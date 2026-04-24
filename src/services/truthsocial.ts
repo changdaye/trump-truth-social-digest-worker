@@ -1,5 +1,3 @@
-import puppeteer from "@cloudflare/puppeteer";
-
 export interface TruthCandidatePost {
   postId: string;
   canonicalUrl: string;
@@ -20,46 +18,38 @@ export interface TruthNormalizedPost {
 }
 
 export interface TruthSocialConfig {
-  truthSocialProfileUrl: string;
+  trumpTruthFeedUrl: string;
   maxPostsPerDigest: number;
 }
 
 export interface TruthSocialFetchDeps {
   hasProcessedPost: (id: string) => Promise<boolean>;
-  htmlLoader?: (profileUrl: string) => Promise<string>;
+  feedLoader?: (feedUrl: string) => Promise<string>;
 }
 
-export function extractCandidatePosts(html: string, profileUrl: string): TruthCandidatePost[] {
-  const articlePattern = /<article[\s\S]*?<\/article>/g;
-  const articles = html.match(articlePattern) ?? [];
+export function extractCandidatePosts(xml: string): TruthCandidatePost[] {
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
 
-  return articles
-    .map((article) => {
-      const hrefMatch = article.match(/href="([^"]*\/posts\/(\d+))"/);
-      const href = hrefMatch?.[1];
-      const postId = hrefMatch?.[2] ?? "";
-      const canonicalUrl = href ? new URL(href, profileUrl).toString() : "";
-      const handle = article.includes("@realDonaldTrump") ? "@realDonaldTrump" : "";
-      const body = decodeHtml(
-        (article.match(/data-markup="true">([\s\S]*?)<\//) ?? [])[1]
-          ?.replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim() ?? ""
-      );
-      const publishedAt = (article.match(/datetime="([^"]+)"/) ?? [])[1] ?? "";
-      const lower = article.toLowerCase();
+  return items.map((itemXml) => {
+    const title = cleanText(extractTagContent(itemXml, 'title'));
+    const descriptionHtml = extractTagContent(itemXml, 'description');
+    const descriptionText = cleanText(stripHtml(descriptionHtml));
+    const originalUrl = cleanText(extractNamespacedTagContent(itemXml, 'originalUrl'));
+    const originalId = cleanText(extractNamespacedTagContent(itemXml, 'originalId')) || extractPostId(originalUrl);
+    const publishedAt = toIsoDate(cleanText(extractTagContent(itemXml, 'pubDate')));
+    const bodyText = descriptionText || normalizeNoTitle(title);
+    const isRepost = /^RT:/i.test(descriptionText) || /\bRT:\s*https?:\/\//i.test(descriptionText);
 
-      return {
-        postId,
-        canonicalUrl,
-        authorHandle: handle,
-        bodyText: body,
-        publishedAt,
-        isReply: lower.includes(" replied"),
-        isRepost: lower.includes("retruth") || lower.includes("re-truth") || lower.includes("retruthed")
-      } satisfies TruthCandidatePost;
-    })
-    .filter((item) => Boolean(item.authorHandle && item.canonicalUrl && item.postId));
+    return {
+      postId: originalId,
+      canonicalUrl: originalUrl,
+      authorHandle: '@realDonaldTrump',
+      bodyText,
+      publishedAt,
+      isReply: false,
+      isRepost
+    } satisfies TruthCandidatePost;
+  }).filter((item) => Boolean(item.postId && item.canonicalUrl));
 }
 
 export async function normalizeTruthPost(candidate: TruthCandidatePost): Promise<TruthNormalizedPost> {
@@ -77,8 +67,8 @@ export async function fetchTruthSocialPosts(config: TruthSocialConfig, deps: Tru
   candidates: TruthCandidatePost[];
   items: TruthNormalizedPost[];
 }> {
-  const html = await (deps.htmlLoader ?? defaultHtmlLoader)(config.truthSocialProfileUrl);
-  const candidates = extractCandidatePosts(html, config.truthSocialProfileUrl);
+  const xml = await (deps.feedLoader ?? defaultFeedLoader)(config.trumpTruthFeedUrl);
+  const candidates = extractCandidatePosts(xml);
   const normalized = await Promise.all(candidates.map(normalizeTruthPost));
   const items: TruthNormalizedPost[] = [];
 
@@ -92,107 +82,61 @@ export async function fetchTruthSocialPosts(config: TruthSocialConfig, deps: Tru
   return { candidates, items };
 }
 
-export interface TruthRenderDiagnostics {
-  target: string;
-  finalUrl: string;
-  title: string;
-  bodySnippet: string;
-  htmlLength: number;
-  articleCount: number;
-  postLinkCount: number;
-  candidateCount: number;
-}
-
-export async function loadTruthSocialProfileHtml(profileUrl: string, browserBinding: Fetcher): Promise<string> {
-  const result = await loadTruthSocialProfileDiagnostics(profileUrl, browserBinding);
-  if (!result.html) {
-    throw new Error(`Browser rendered page but found no post content. ${result.diagnostics.map((item) => `target=${item.target} final=${item.finalUrl} title=${item.title} snippet=${item.bodySnippet}`).join(" | ")}`);
-  }
-  return result.html;
-}
-
-export async function loadTruthSocialProfileDiagnostics(profileUrl: string, browserBinding: Fetcher): Promise<{ html?: string; diagnostics: TruthRenderDiagnostics[] }> {
-  const browser = await puppeteer.launch(browserBinding);
-  const targets = buildFallbackTargets(profileUrl);
-  const diagnostics: TruthRenderDiagnostics[] = [];
-
-  try {
-    for (const target of targets) {
-      const page = await browser.newPage();
-      try {
-        await page.setUserAgent(
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        );
-        await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60_000 });
-        await page.waitForNetworkIdle({ idleTime: 1_500, timeout: 15_000 }).catch(() => {});
-        await page.waitForSelector('body', { timeout: 5_000 });
-        const html = await page.content();
-        const title = await page.title();
-        const bodyText = await page.evaluate(() => document.body?.innerText ?? "");
-        const diag = {
-          target,
-          finalUrl: page.url(),
-          title,
-          bodySnippet: compact(bodyText),
-          htmlLength: html.length,
-          articleCount: (html.match(/<article[\s\S]*?<\/article>/g) ?? []).length,
-          postLinkCount: (html.match(/\/posts\/\d+/g) ?? []).length,
-          candidateCount: extractCandidatePosts(html, target).length
-        } satisfies TruthRenderDiagnostics;
-        diagnostics.push(diag);
-
-        if (containsLikelyPostContent(html, title, bodyText)) {
-          return { html, diagnostics };
-        }
-      } finally {
-        await page.close();
-      }
-    }
-  } finally {
-    await browser.close();
-  }
-
-  return { diagnostics };
-}
-
-async function defaultHtmlLoader(profileUrl: string): Promise<string> {
-  const response = await fetch(profileUrl, {
-    headers: { "user-agent": "Mozilla/5.0" }
+async function defaultFeedLoader(feedUrl: string): Promise<string> {
+  const response = await fetch(feedUrl, {
+    headers: { 'user-agent': 'Mozilla/5.0' }
   });
   if (!response.ok) {
-    throw new Error(`Truth Social profile fetch failed: HTTP ${response.status}`);
+    throw new Error(`Trump's Truth feed fetch failed: HTTP ${response.status}`);
   }
   return await response.text();
 }
 
-function buildFallbackTargets(profileUrl: string): string[] {
-  const urls = [profileUrl];
-  if (profileUrl.includes("truthsocial.com")) {
-    urls.push(profileUrl.replace("truthsocial.com", "truthsocialapp.com"));
-  } else if (profileUrl.includes("truthsocialapp.com")) {
-    urls.push(profileUrl.replace("truthsocialapp.com", "truthsocial.com"));
-  }
-  return [...new Set(urls)];
+function extractTagContent(itemXml: string, tagName: string): string {
+  const cdata = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tagName}>`, 'i').exec(itemXml);
+  if (cdata) return cdata[1];
+  const plain = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, 'i').exec(itemXml);
+  return plain?.[1] ?? '';
 }
 
-function containsLikelyPostContent(html: string, title: string, bodyText: string): boolean {
-  const loweredTitle = title.toLowerCase();
-  const loweredBody = bodyText.toLowerCase();
-  if (loweredTitle.includes("just a moment") || loweredBody.includes("performing security verification") || html.includes("__cf_chl_")) {
-    return false;
-  }
-  return html.includes('/posts/') || /@realDonaldTrump/i.test(bodyText) || /truths|retruths|replies/i.test(bodyText);
+function extractNamespacedTagContent(itemXml: string, tagName: string): string {
+  const match = new RegExp(`<truth:${tagName}>([\\s\\S]*?)<\\/truth:${tagName}>`, 'i').exec(itemXml);
+  return match?.[1] ?? '';
 }
 
-function compact(value: string): string {
-  return value.replace(/\s+/g, ' ').trim().slice(0, 220);
+function stripHtml(value: string): string {
+  return decodeHtml(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function cleanText(value: string): string {
+  return decodeHtml(value)
+    .replace(/<!\[CDATA\[|\]\]>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeNoTitle(title: string): string {
+  return /^\[No Title\]/i.test(title) ? '' : title;
+}
+
+function extractPostId(url: string): string {
+  const match = /\/([0-9]{6,})$/.exec(url);
+  return match?.[1] ?? '';
+}
+
+function toIsoDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
 }
 
 function decodeHtml(value: string): string {
   return value
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x2019;/gi, '’')
+    .replace(/&#8217;/g, '’');
 }

@@ -1,6 +1,5 @@
 export interface Env {
   AI: Ai;
-  MYBROWSER: Fetcher;
   RUNTIME_KV: KVNamespace;
   BRIEF_DB: D1Database;
   FEISHU_WEBHOOK: string;
@@ -19,7 +18,7 @@ export interface Env {
   MAX_POSTS_PER_DIGEST?: string;
   FAILURE_ALERT_THRESHOLD?: string;
   FAILURE_ALERT_COOLDOWN_MINUTES?: string;
-  TRUTHSOCIAL_PROFILE_URL?: string;
+  TRUMP_TRUTH_FEED_URL?: string;
 }
 
 export interface BriefConfig {
@@ -39,7 +38,7 @@ export interface BriefConfig {
   maxPostsPerDigest: number;
   failureAlertThreshold: number;
   failureAlertCooldownMinutes: number;
-  truthSocialProfileUrl: string;
+  trumpTruthFeedUrl: string;
 }
 
 export interface ProcessedPostRecord {

@@ -4,9 +4,6 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-04-24",
 	"workers_dev": true,
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
 	"preview_urls": false,
 	"observability": {
 		"enabled": true
@@ -19,13 +16,10 @@
 	"kv_namespaces": [
 		{
 			"binding": "RUNTIME_KV",
-			"id": "c93ef3a413514db6a9d3741f820defff",
-			"preview_id": "2d33fa43bbf04089a2c09c55af198584"
+			"id": "e2c06df95a7f45bfae27ee5c79b3bf29",
+			"preview_id": "1b1576e8d8924659855587dcf8256a15"
 		}
 	],
-	"browser": {
-		"binding": "MYBROWSER"
-	},
 	"ai": {
 		"binding": "AI"
 	},
@@ -33,7 +27,7 @@
 		{
 			"binding": "BRIEF_DB",
 			"database_name": "trump-truth-social-digest",
-			"database_id": "ae7ac3e9-265d-4666-913b-4f17d48130d5",
+			"database_id": "a522c64e-6506-43a8-a821-90081179f559",
 			"migrations_dir": "migrations"
 		}
 	],
@@ -44,7 +38,7 @@
 		"FETCH_WINDOW_HOURS": "2",
 		"MAX_POSTS_PER_DIGEST": "30",
 		"LLM_MODEL": "@cf/meta/llama-3.1-8b-instruct",
-		"TRUTHSOCIAL_PROFILE_URL": "https://truthsocial.com/@realDonaldTrump",
+		"TRUMP_TRUTH_FEED_URL": "https://trumpstruth.org/feed",
 		"FAILURE_ALERT_THRESHOLD": "1",
 		"FAILURE_ALERT_COOLDOWN_MINUTES": "180"
 	}

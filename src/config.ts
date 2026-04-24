@@ -25,6 +25,6 @@ export function parseConfig(env: Env): BriefConfig {
     maxPostsPerDigest: toInt(env.MAX_POSTS_PER_DIGEST, 30, 1),
     failureAlertThreshold: toInt(env.FAILURE_ALERT_THRESHOLD, 1, 1),
     failureAlertCooldownMinutes: toInt(env.FAILURE_ALERT_COOLDOWN_MINUTES, 180, 1),
-    truthSocialProfileUrl: env.TRUTHSOCIAL_PROFILE_URL?.trim() || "https://truthsocial.com/@realDonaldTrump"
+    trumpTruthFeedUrl: env.TRUMP_TRUTH_FEED_URL?.trim() || "https://trumpstruth.org/feed"
   };
 }

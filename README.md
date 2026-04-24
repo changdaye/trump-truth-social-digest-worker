@@ -1,6 +1,6 @@
 # trump-truth-social-digest-worker
 
-Cloudflare Worker that monitors `@realDonaldTrump` on Truth Social, generates a Chinese digest every two hours, pushes a Feishu summary, and archives a detailed Markdown report to object storage.
+Cloudflare Worker that monitors Donald Trump posts via the Trump's Truth RSS archive, generates a Chinese digest every two hours, pushes a Feishu summary, and archives a detailed Markdown report to object storage.
 
 ## Development
 
@@ -41,4 +41,4 @@ Provide these values via `.dev.vars` for local development and Cloudflare secret
 ## Notes
 
 - This project starts monitoring new posts from the time it is deployed; it does not backfill historical posts.
-- The current scraper is HTML-structure dependent and should be re-verified whenever Truth Social changes its markup.
+- The current primary source is `https://trumpstruth.org/feed`, with original Truth Social URLs preserved in the feed metadata.
