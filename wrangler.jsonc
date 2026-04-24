@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trump-truth-social-digest-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-24",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["0 */2 * * *"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "RUNTIME_KV",
+      "id": "TODO_REPLACE_WITH_RUNTIME_KV_ID",
+      "preview_id": "TODO_REPLACE_WITH_RUNTIME_KV_PREVIEW_ID"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "BRIEF_DB",
+      "database_name": "trump-truth-social-digest",
+      "database_id": "TODO_REPLACE_WITH_BRIEF_DB_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "DIGEST_INTERVAL_HOURS": "2",
+    "HEARTBEAT_INTERVAL_HOURS": "24",
+    "REQUEST_TIMEOUT_MS": "15000",
+    "FETCH_WINDOW_HOURS": "2",
+    "MAX_POSTS_PER_DIGEST": "30",
+    "LLM_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+    "TRUTHSOCIAL_PROFILE_URL": "https://truthsocialapp.com/@realDonaldTrump",
+    "FAILURE_ALERT_THRESHOLD": "1",
+    "FAILURE_ALERT_COOLDOWN_MINUTES": "180"
+  }
+}
