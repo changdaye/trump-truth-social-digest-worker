@@ -8,7 +8,7 @@ import { sha256Hex } from "./lib/value";
 import { uploadDetailedReportToCos } from "./services/cos";
 import { pushToFeishu } from "./services/feishu";
 import { analyzePostsWithLLM, parseLlmDigestResponse, type LlmDigestItem } from "./services/llm";
-import { fetchTruthSocialPosts, type TruthNormalizedPost } from "./services/truthsocial";
+import { fetchTruthSocialPosts, loadTruthSocialProfileDiagnostics, loadTruthSocialProfileHtml, type TruthNormalizedPost } from "./services/truthsocial";
 import type { DigestRunRecord, Env, ProcessedPostRecord } from "./types";
 
 interface RuntimeDeps {
@@ -54,6 +54,16 @@ export function createWorker(overrides: Partial<RuntimeDeps> = {}) {
         return jsonResponse(await buildHealthResponse(env, deps));
       }
 
+      if (request.method === "GET" && url.pathname === "/admin/debug-source") {
+        const config = parseConfig(env);
+        const auth = authorizeAdminRequest(request, config.manualTriggerToken);
+        if (!auth.ok) {
+          return jsonResponse({ ok: false, error: auth.error }, auth.status);
+        }
+        const result = await loadTruthSocialProfileDiagnostics(config.truthSocialProfileUrl, env.MYBROWSER);
+        return jsonResponse({ ok: true, ...result });
+      }
+
       if (request.method === "POST" && url.pathname === "/admin/trigger") {
         const config = parseConfig(env);
         const auth = authorizeAdminRequest(request, config.manualTriggerToken);
@@ -84,8 +94,8 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
 
   try {
     const { candidates, items } = await deps.fetchTruthSocialPosts(config, {
-      fetcher: (input, init) => globalThis.fetch(input, init),
-      hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id)
+      hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id),
+      htmlLoader: (profileUrl) => loadTruthSocialProfileHtml(profileUrl, env.MYBROWSER)
     });
 
     if (items.length === 0) {

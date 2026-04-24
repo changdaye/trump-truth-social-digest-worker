@@ -1,5 +1,6 @@
 export interface Env {
   AI: Ai;
+  MYBROWSER: Fetcher;
   RUNTIME_KV: KVNamespace;
   BRIEF_DB: D1Database;
   FEISHU_WEBHOOK: string;

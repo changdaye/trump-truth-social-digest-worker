@@ -4,6 +4,9 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-04-24",
 	"workers_dev": true,
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"preview_urls": false,
 	"observability": {
 		"enabled": true
@@ -20,6 +23,9 @@
 			"preview_id": "2d33fa43bbf04089a2c09c55af198584"
 		}
 	],
+	"browser": {
+		"binding": "MYBROWSER"
+	},
 	"ai": {
 		"binding": "AI"
 	},
@@ -38,7 +44,7 @@
 		"FETCH_WINDOW_HOURS": "2",
 		"MAX_POSTS_PER_DIGEST": "30",
 		"LLM_MODEL": "@cf/meta/llama-3.1-8b-instruct",
-		"TRUTHSOCIAL_PROFILE_URL": "https://truthsocialapp.com/@realDonaldTrump",
+		"TRUTHSOCIAL_PROFILE_URL": "https://truthsocial.com/@realDonaldTrump",
 		"FAILURE_ALERT_THRESHOLD": "1",
 		"FAILURE_ALERT_COOLDOWN_MINUTES": "180"
 	}

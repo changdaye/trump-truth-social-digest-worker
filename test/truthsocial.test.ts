@@ -48,9 +48,9 @@ describe("Truth Social extraction", () => {
     `;
 
     const result = await fetchTruthSocialPosts(
-      { truthSocialProfileUrl: "https://truthsocialapp.com/@realDonaldTrump", maxPostsPerDigest: 10 },
+      { truthSocialProfileUrl: "https://truthsocial.com/@realDonaldTrump", maxPostsPerDigest: 10 },
       {
-        fetcher: async () => new Response(html),
+        htmlLoader: async () => html,
         hasProcessedPost: async (id) => id === "333"
       }
     );

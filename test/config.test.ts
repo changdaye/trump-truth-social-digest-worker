@@ -19,7 +19,7 @@ describe("parseConfig", () => {
 
     const config = parseConfig(env);
 
-    expect(config.truthSocialProfileUrl).toBe("https://truthsocialapp.com/@realDonaldTrump");
+    expect(config.truthSocialProfileUrl).toBe("https://truthsocial.com/@realDonaldTrump");
     expect(config.digestIntervalHours).toBe(2);
     expect(config.maxPostsPerDigest).toBe(30);
     expect(config.cosBaseUrl).toBe("https://bucket-123.cos.ap-guangzhou.myqcloud.com");
