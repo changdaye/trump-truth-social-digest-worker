@@ -7,3 +7,6 @@ coverage/
 dist/
 
 .worktrees/
+
+.omitted-manual-trigger-token.txt
+wrangler.deploy.no-cron.jsonc

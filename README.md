@@ -1,26 +1,29 @@
 # trump-truth-social-digest-worker
 
-A Cloudflare Worker scaffold for monitoring Donald Trump's public Truth Social posts,
-generating Chinese digests every two hours, pushing short Feishu updates, and
-archiving detailed Markdown reports to object storage.
+Cloudflare Worker that monitors Donald Trump posts via the Trump's Truth RSS archive, generates a Chinese digest every two hours, pushes a Feishu summary, and archives a detailed Markdown report to object storage.
 
-## Tooling targets
+## Development
 
 ```bash
 npm install
-npm run typecheck
-npm run test
 npm run check
+npx wrangler dev
 ```
 
-> `npm run typecheck` is expected to fail in Task 1 until `src/index.ts` is created.
+## Manual trigger
 
-## Setup
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_MANUAL_TRIGGER_TOKEN" \
+  https://<your-worker>/admin/trigger
+```
 
-1. Run `npm install`.
-2. Copy `.dev.vars.example` to `.dev.vars` for local development.
-3. Replace the placeholder Cloudflare resource IDs in `wrangler.jsonc` after creating KV and D1.
-4. Start local development with `npm run dev` when the Worker entrypoint exists.
+## Runtime resources
+
+- D1 database: `trump-truth-social-digest`
+- KV namespace: runtime state (`RUNTIME_KV`)
+- Workers AI binding: `AI`
+- Object storage credentials: Tencent COS-compatible secrets
 
 ## Secrets
 
@@ -35,12 +38,7 @@ Provide these values via `.dev.vars` for local development and Cloudflare secret
 - `TENCENT_COS_REGION`
 - `TENCENT_COS_BASE_URL`
 
-## Cloudflare bindings
+## Notes
 
-`wrangler.jsonc` is scaffolded with these bindings and default vars:
-
-- KV: `RUNTIME_KV`
-- Workers AI: `AI`
-- D1: `BRIEF_DB`
-- Cron: `0 */2 * * *`
-- Runtime vars for digest cadence, fetch window, alert thresholds, model, and profile URL
+- This project starts monitoring new posts from the time it is deployed; it does not backfill historical posts.
+- The current primary source is `https://trumpstruth.org/feed`, with original Truth Social URLs preserved in the feed metadata.

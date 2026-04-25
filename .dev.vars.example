@@ -1,6 +1,9 @@
 FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/replace-me
 FEISHU_SECRET=replace-me
 MANUAL_TRIGGER_TOKEN=replace-me
+LLM_BASE_URL=
+LLM_API_KEY=
+LLM_MODEL=@cf/meta/llama-3.1-8b-instruct
 TENCENT_COS_SECRET_ID=replace-me
 TENCENT_COS_SECRET_KEY=replace-me
 TENCENT_COS_BUCKET=replace-me
