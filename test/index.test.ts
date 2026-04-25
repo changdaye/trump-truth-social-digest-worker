@@ -77,8 +77,8 @@ describe("worker fetch routes", () => {
         throw new Error("AI down");
       },
       uploadDetailedReportToCos: async () => ({
-        key: "trump-truth-social-digest-worker/20260424000000.md",
-        url: "https://example.com/report.md"
+        key: "trump-truth-social-digest-worker/20260424000000.html",
+        url: "https://example.com/report.html"
       }),
       pushToFeishu: async (_config, text) => {
         pushes.push(text);
@@ -128,8 +128,8 @@ describe("worker fetch routes", () => {
         modelLabel: "GPT 5.4 (xhigh)"
       }),
       uploadDetailedReportToCos: async () => ({
-        key: "trump-truth-social-digest-worker/20260424000000.md",
-        url: "https://example.com/report.md"
+        key: "trump-truth-social-digest-worker/20260424000000.html",
+        url: "https://example.com/report.html"
       }),
       pushToFeishu: async (_config, text) => {
         pushes.push(text);
