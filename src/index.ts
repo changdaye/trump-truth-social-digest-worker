@@ -103,10 +103,12 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
     let summary: string;
     let hotTerms: string[] = [];
     let digestItems: LlmDigestItem[];
+    let modelLabel = "";
 
     try {
-      const aiResponse = await deps.analyzePostsWithLLM(config, env.AI, preparedSourceText);
-      const parsed = deps.parseLlmDigestResponse(aiResponse);
+      const llmResult = await deps.analyzePostsWithLLM(config, env.AI, preparedSourceText);
+      const parsed = deps.parseLlmDigestResponse(llmResult.content);
+      modelLabel = llmResult.modelLabel;
       summary = parsed.summary;
       hotTerms = parsed.hotTerms;
       digestItems = items.map((item, index) => ({
@@ -129,8 +131,8 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
     const report = buildDetailedReport(summary, mergeReportItems(items, digestItems), now);
     const uploaded = await deps.uploadDetailedReportToCos(config, report, now);
     const message = aiAnalysis
-      ? buildDigestMessage(summary, hotTerms.length > 0 ? hotTerms : computeHotTerms(digestItems), digestItems.map((item, index) => ({ ...item, publishedAt: items[index]?.publishedAt })), uploaded.url)
-      : buildFallbackMessage(digestItems, uploaded.url);
+      ? buildDigestMessage(summary, hotTerms.length > 0 ? hotTerms : computeHotTerms(digestItems), digestItems.map((item, index) => ({ ...item, publishedAt: items[index]?.publishedAt })), uploaded.url, modelLabel)
+      : buildFallbackMessage(digestItems, uploaded.url, modelLabel);
 
     const runId = crypto.randomUUID();
     const digestRun: Omit<DigestRunRecord, "feishuPushOk"> = {

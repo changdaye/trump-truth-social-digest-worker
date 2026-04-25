@@ -10,6 +10,8 @@ export interface Env {
   TENCENT_COS_BUCKET: string;
   TENCENT_COS_REGION: string;
   TENCENT_COS_BASE_URL?: string;
+  LLM_BASE_URL?: string;
+  LLM_API_KEY?: string;
   LLM_MODEL?: string;
   DIGEST_INTERVAL_HOURS?: string;
   HEARTBEAT_INTERVAL_HOURS?: string;
@@ -30,6 +32,8 @@ export interface BriefConfig {
   cosBucket: string;
   cosRegion: string;
   cosBaseUrl: string;
+  llmBaseUrl: string;
+  llmApiKey: string;
   llmModel: string;
   digestIntervalHours: number;
   heartbeatIntervalHours: number;
@@ -39,6 +43,11 @@ export interface BriefConfig {
   failureAlertThreshold: number;
   failureAlertCooldownMinutes: number;
   trumpTruthFeedUrl: string;
+}
+
+export interface LLMAnalysisResult {
+  content: unknown;
+  modelLabel: string;
 }
 
 export interface ProcessedPostRecord {

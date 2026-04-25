@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDigestMessage } from "../src/lib/message";
+import { buildDigestMessage, buildFallbackMessage } from "../src/lib/message";
 import { buildDetailedReport, buildDetailedReportObjectKey } from "../src/lib/report";
 
 const items = [{
@@ -13,6 +13,11 @@ const items = [{
 }];
 
 describe("message formatting", () => {
+  it("includes the model label when provided", () => {
+    const message = buildDigestMessage("本时段特朗普继续聚焦竞选表达。", ["选举", "竞选口号"], items, "https://example.com/report.md", "GPT 5.4 (xhigh)");
+    expect(message).toContain("🤖 模型：GPT 5.4 (xhigh)");
+  });
+
   it("builds a compressed summary-style Feishu message", () => {
     const message = buildDigestMessage("本时段特朗普继续聚焦竞选表达。", ["选举", "竞选口号"], items, "https://example.com/report.md");
     expect(message).toContain("特朗普 Truth Social 简报");
@@ -35,5 +40,10 @@ describe("message formatting", () => {
     expect(buildDetailedReportObjectKey(new Date("2026-04-24T04:00:00.000Z"))).toBe(
       "trump-truth-social-digest-worker/20260424040000.md"
     );
+  });
+
+  it("includes the model label in fallback messages when provided", () => {
+    const message = buildFallbackMessage(items, "https://example.com/report.md", "Llama 3.1 8B Instruct");
+    expect(message).toContain("🤖 模型：Llama 3.1 8B Instruct");
   });
 });

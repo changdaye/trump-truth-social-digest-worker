@@ -10,8 +10,10 @@ export interface DigestMessageItem {
 
 const MAX_MESSAGE_LENGTH = 2600;
 
-export function buildDigestMessage(summary: string, hotTerms: string[], items: DigestMessageItem[], reportUrl: string): string {
-  const lines = ["特朗普 Truth Social 简报", "", summary.trim()];
+export function buildDigestMessage(summary: string, hotTerms: string[], items: DigestMessageItem[], reportUrl: string, modelLabel = ""): string {
+  const lines = ["特朗普 Truth Social 简报"];
+  if (modelLabel) lines.push("", `🤖 模型：${modelLabel}`);
+  lines.push("", summary.trim());
 
   if (hotTerms.length > 0) {
     lines.push("", `高频词：${hotTerms.slice(0, 6).join(" / ")}`);
@@ -32,7 +34,7 @@ export function buildDigestMessage(summary: string, hotTerms: string[], items: D
   return limitMessage(lines.join("\n").trim());
 }
 
-export function buildFallbackMessage(items: DigestMessageItem[], reportUrl: string): string {
+export function buildFallbackMessage(items: DigestMessageItem[], reportUrl: string, modelLabel = ""): string {
   const compressed = items
     .slice(0, 5)
     .map((item) => item.translatedText.trim())
@@ -42,6 +44,7 @@ export function buildFallbackMessage(items: DigestMessageItem[], reportUrl: stri
 
   const lines = [
     "特朗普 Truth Social 简报",
+    ...(modelLabel ? ["", `🤖 模型：${modelLabel}`] : []),
     "",
     "说明：AI 中文整理暂不可用，以下为基础摘要。"
   ];

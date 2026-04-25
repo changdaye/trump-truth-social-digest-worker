@@ -17,6 +17,8 @@ export function parseConfig(env: Env): BriefConfig {
     cosBucket: env.TENCENT_COS_BUCKET.trim(),
     cosRegion: env.TENCENT_COS_REGION.trim(),
     cosBaseUrl: env.TENCENT_COS_BASE_URL?.trim() || `https://${env.TENCENT_COS_BUCKET.trim()}.cos.${env.TENCENT_COS_REGION.trim()}.myqcloud.com`,
+    llmBaseUrl: env.LLM_BASE_URL?.trim() ?? "",
+    llmApiKey: env.LLM_API_KEY?.trim() ?? "",
     llmModel: env.LLM_MODEL?.trim() || "@cf/meta/llama-3.1-8b-instruct",
     digestIntervalHours: toInt(env.DIGEST_INTERVAL_HOURS, 2, 1),
     heartbeatIntervalHours: toInt(env.HEARTBEAT_INTERVAL_HOURS, 24, 1),

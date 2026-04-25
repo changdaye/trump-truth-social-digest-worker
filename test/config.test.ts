@@ -23,6 +23,8 @@ describe("parseConfig", () => {
     expect(config.digestIntervalHours).toBe(2);
     expect(config.maxPostsPerDigest).toBe(30);
     expect(config.cosBaseUrl).toBe("https://bucket-123.cos.ap-guangzhou.myqcloud.com");
+    expect(config.llmBaseUrl).toBe("");
+    expect(config.llmApiKey).toBe("");
   });
 
   it("throws when required secrets are missing", () => {
