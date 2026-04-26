@@ -96,4 +96,59 @@ describe("Truth Social extraction", () => {
     expect(result.items).toHaveLength(0);
   });
 
+  it("can force the latest original posts even when they are old or already processed", async () => {
+    const xml = `
+      <rss><channel>
+        <item>
+          <title><![CDATA[Latest original post]]></title>
+          <description><![CDATA[<p>Latest original post</p>]]></description>
+          <pubDate>Thu, 24 Apr 2026 00:00:00 +0000</pubDate>
+          <truth:originalUrl>https://truthsocial.com/@realDonaldTrump/999</truth:originalUrl>
+          <truth:originalId>999</truth:originalId>
+        </item>
+      </channel></rss>
+    `;
+
+    const result = await fetchTruthSocialPosts(
+      { trumpTruthFeedUrl: "https://trumpstruth.org/feed", maxPostsPerDigest: 10, fetchWindowHours: 2 },
+      {
+        feedLoader: async () => xml,
+        hasProcessedPost: async () => true,
+        now: () => new Date("2026-04-24T06:00:00.000Z"),
+        forceLatest: true,
+      }
+    );
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.id).toBe("999");
+  });
+
+  it("caps forced latest mode to a small recent batch", async () => {
+    const xml = `
+      <rss><channel>
+        ${Array.from({ length: 8 }, (_, index) => `
+        <item>
+          <title><![CDATA[Post ${index + 1}]]></title>
+          <description><![CDATA[<p>Post ${index + 1}</p>]]></description>
+          <pubDate>Fri, 24 Apr 2026 05:${String(59 - index).padStart(2, "0")}:00 +0000</pubDate>
+          <truth:originalUrl>https://truthsocial.com/@realDonaldTrump/${index + 1}</truth:originalUrl>
+          <truth:originalId>${index + 1}</truth:originalId>
+        </item>`).join("")}
+      </channel></rss>
+    `;
+
+    const result = await fetchTruthSocialPosts(
+      { trumpTruthFeedUrl: "https://trumpstruth.org/feed", maxPostsPerDigest: 30, fetchWindowHours: 2 },
+      {
+        feedLoader: async () => xml,
+        hasProcessedPost: async () => false,
+        now: () => new Date("2026-04-24T06:00:00.000Z"),
+        forceLatest: true,
+      }
+    );
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items.map((item) => item.id)).toEqual(["1"]);
+  });
+
 });

@@ -39,6 +39,7 @@
 		"FETCH_WINDOW_HOURS": "2",
 		"MAX_POSTS_PER_DIGEST": "30",
 		"LLM_MODEL": "gpt-5.4",
+		"WORKER_PUBLIC_BASE_URL": "https://trump-truth-social-digest-worker.5frhvfq5s2.workers.dev",
 		"TRUMP_TRUTH_FEED_URL": "https://trumpstruth.org/feed",
 		"FAILURE_ALERT_THRESHOLD": "1",
 		"FAILURE_ALERT_COOLDOWN_MINUTES": "180"

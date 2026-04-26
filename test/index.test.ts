@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { createWorker } from "../src/index";
+import { describe, expect, it, vi } from "vitest";
+import { createWorker, queueManualTrigger } from "../src/index";
 import type { Env } from "../src/types";
 
 const env = {
   AI: {} as Ai,
-  RUNTIME_KV: {} as KVNamespace,
+  RUNTIME_KV: { get: async () => null, put: async () => undefined } as unknown as KVNamespace,
   BRIEF_DB: {} as D1Database,
   FEISHU_WEBHOOK: "https://open.feishu.cn/open-apis/bot/v2/hook/example",
   FEISHU_SECRET: "secret",
@@ -16,20 +16,31 @@ const env = {
 } as Env;
 
 describe("worker fetch routes", () => {
+  it("queues the run in waitUntil and returns an accepted response immediately", async () => {
+    const task = vi.fn().mockResolvedValue(undefined);
+    const waitUntil = vi.fn((promise: Promise<unknown>) => promise);
+    const response = queueManualTrigger({ waitUntil } as unknown as ExecutionContext, task);
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    expect(task).toHaveBeenCalledTimes(1);
+  });
+
   it("returns health JSON", async () => {
     const worker = createWorker({
       getRuntimeState: async () => ({ consecutiveFailures: 0 }),
       listRecentDigestRuns: async () => []
     });
 
-    const response = await worker.fetch(new Request("https://example.com/health"), env);
+    const response = await worker.fetch(new Request("https://example.com/health"), env, {} as ExecutionContext);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ ok: true, worker: "trump-truth-social-digest-worker" });
   });
 
   it("rejects unauthorized manual triggers", async () => {
     const worker = createWorker();
-    const response = await worker.fetch(new Request("https://example.com/admin/trigger", { method: "POST" }), env);
+    const response = await worker.fetch(new Request("https://example.com/admin/trigger", { method: "POST" }), env, {} as ExecutionContext);
     expect(response.status).toBe(401);
   });
 
@@ -51,7 +62,8 @@ describe("worker fetch routes", () => {
         method: "POST",
         headers: { authorization: "Bearer token" }
       }),
-      env
+      env,
+      {} as ExecutionContext,
     );
 
     expect(response.status).toBe(200);
@@ -96,7 +108,8 @@ describe("worker fetch routes", () => {
         method: "POST",
         headers: { authorization: "Bearer token" }
       }),
-      env
+      env,
+      {} as ExecutionContext,
     );
 
     expect(response.status).toBe(200);
@@ -147,11 +160,68 @@ describe("worker fetch routes", () => {
         method: "POST",
         headers: { authorization: "Bearer token" }
       }),
-      env
+      env,
+      {} as ExecutionContext,
     );
 
     expect(response.status).toBe(200);
     expect(pushes.some((text) => text.includes("🤖 模型：GPT 5.4 (xhigh)"))).toBe(true);
+  });
+
+  it("can force the latest posts for a manual re-push", async () => {
+    const pushes: string[] = [];
+    const insertProcessedPost = vi.fn(async () => {});
+    const worker = createWorker({
+      now: () => new Date("2026-04-24T00:00:00.000Z"),
+      fetchTruthSocialPosts: async (_config, fetchDeps) => ({
+        candidates: [],
+        items: fetchDeps.forceLatest
+          ? [{
+              id: "111",
+              canonicalUrl: "https://truthsocialapp.com/@realDonaldTrump/posts/111",
+              authorHandle: "@realDonaldTrump",
+              bodyText: "MAKE AMERICA GREAT AGAIN",
+              publishedAt: "2026-04-24T00:00:00.000Z",
+              isOriginal: true
+            }]
+          : []
+      }),
+      analyzePostsWithLLM: async () => ({
+        content: JSON.stringify({
+          summary: "本时段特朗普继续聚焦竞选表达。",
+          hotTerms: ["选举"],
+          items: [{ translatedText: "让美国再次伟大！", topicTags: ["选举"], interpretation: "这条帖是在强化竞选口号。" }]
+        }),
+        modelLabel: "Llama 3.1 8B Instruct"
+      }),
+      uploadDetailedReportToCos: async () => ({
+        key: "trump-truth-social-digest-worker/20260424000000.html",
+        url: "https://example.com/report.html"
+      }),
+      pushToFeishu: async (_config, text) => {
+        pushes.push(text);
+      },
+      insertDigestRun: async () => {},
+      markDigestRunPushed: async () => {},
+      insertProcessedPost,
+      getRuntimeState: async () => ({ consecutiveFailures: 0 }),
+      setRuntimeState: async () => {},
+      listRecentDigestRuns: async () => []
+    });
+
+    const response = await worker.fetch(
+      new Request("https://example.com/admin/trigger?force=1", {
+        method: "POST",
+        headers: { authorization: "Bearer token" }
+      }),
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(response.status).toBe(200);
+    expect(pushes.some((text) => text.includes("详细版报告"))).toBe(true);
+    expect(insertProcessedPost).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({ ok: true, itemCount: 1, aiAnalysis: true });
   });
 
   it("sends a failure alert when the run throws repeatedly", async () => {
@@ -174,7 +244,8 @@ describe("worker fetch routes", () => {
         method: "POST",
         headers: { authorization: "Bearer token" }
       }),
-      env
+      env,
+      {} as ExecutionContext,
     );
 
     expect(response.status).toBe(500);

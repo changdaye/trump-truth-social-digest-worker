@@ -3,6 +3,7 @@ import type { BriefConfig, LLMAnalysisResult } from "../types";
 const SYSTEM_PROMPT = `你是一名中文资讯摘要编辑。请把特朗普帖文整理成简明中文。必须只输出 JSON 对象，不要输出任何 JSON 以外的文字。顶层字段必须包含 summary、hotTerms、items。summary 用 2 句以内概括这批帖子主要在说什么。hotTerms 输出 3 到 6 个高频词或高频主题短语。items 中每一项必须包含 translatedText、topicTags、interpretation。translatedText 必须尽量贴近原意，像“他说了什么”的中文转述，而不是空泛总结；不要输出英文原文。topicTags 是 1 到 3 个短标签。interpretation 只允许一句中文，说明这条帖的关注点。`;
 const DEFAULT_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const OPENAI_COMPAT_REASONING_EFFORT = "xhigh";
+const OPENAI_COMPAT_MAX_COMPLETION_TOKENS = 1200;
 
 export interface LlmDigestItem {
   translatedText: string;
@@ -57,7 +58,7 @@ function buildResponseFormat() {
 }
 
 export async function analyzePostsWithLLM(config: BriefConfig, ai: Ai, sourceText: string): Promise<LLMAnalysisResult> {
-  if (config.llmBaseUrl && config.llmApiKey) {
+  if (shouldUseOpenAICompatible(config)) {
     try {
       return await analyzeWithOpenAICompatible(config, sourceText);
     } catch (error) {
@@ -72,6 +73,14 @@ export async function analyzePostsWithLLM(config: BriefConfig, ai: Ai, sourceTex
   );
 }
 
+function shouldUseOpenAICompatible(config: BriefConfig): boolean {
+  return Boolean(
+    config.llmBaseUrl
+    && config.llmApiKey
+    && !config.llmModel.trim().startsWith("@cf/"),
+  );
+}
+
 async function analyzeWithOpenAICompatible(config: BriefConfig, sourceText: string): Promise<LLMAnalysisResult> {
   const response = await fetch(`${config.llmBaseUrl.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
@@ -82,13 +91,13 @@ async function analyzeWithOpenAICompatible(config: BriefConfig, sourceText: stri
     body: JSON.stringify({
       model: config.llmModel,
       reasoning_effort: OPENAI_COMPAT_REASONING_EFFORT,
+      max_completion_tokens: OPENAI_COMPAT_MAX_COMPLETION_TOKENS,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: sourceText }
       ],
       max_tokens: 1600,
       temperature: 0.2,
-      response_format: buildResponseFormat(),
     }),
   });
 

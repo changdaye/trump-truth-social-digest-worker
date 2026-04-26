@@ -3,6 +3,7 @@ import { hasProcessedPost, insertDigestRun, insertProcessedPost, listRecentDiges
 import { authorizeAdminRequest } from "./lib/admin";
 import { buildDigestMessage, buildFailureAlertMessage, buildFallbackMessage, buildHeartbeatMessage } from "./lib/message";
 import { buildDetailedReport } from "./lib/report";
+import { buildDetailedReportPublicUrl, maybeHandleDetailedReportRequest, saveDetailedReportCopy } from "./lib/report-storage";
 import { getRuntimeState, recordFailure, recordSuccess, setRuntimeState, shouldSendFailureAlert, shouldSendHeartbeat, type RuntimeState } from "./lib/runtime";
 import { sha256Hex } from "./lib/value";
 import { uploadDetailedReportToCos } from "./services/cos";
@@ -47,8 +48,13 @@ export function createWorker(overrides: Partial<RuntimeDeps> = {}) {
   const deps = { ...defaultDeps, ...overrides };
 
   return {
-    async fetch(request: Request, env: Env): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
       const url = new URL(request.url);
+
+      if (request.method === "GET") {
+        const reportResponse = await maybeHandleDetailedReportRequest(request, env.RUNTIME_KV);
+        if (reportResponse) return reportResponse;
+      }
 
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
         return jsonResponse(await buildHealthResponse(env, deps));
@@ -60,9 +66,14 @@ export function createWorker(overrides: Partial<RuntimeDeps> = {}) {
         if (!auth.ok) {
           return jsonResponse({ ok: false, error: auth.error }, auth.status);
         }
+        if (url.searchParams.get("async") === "1") {
+          return queueManualTrigger(ctx, async () => {
+            await runDigest(env, deps, { forceLatest: url.searchParams.get("force") === "1" });
+          });
+        }
 
         try {
-          return jsonResponse({ ok: true, ...(await runDigest(env, deps)) });
+          return jsonResponse({ ok: true, ...(await runDigest(env, deps, { forceLatest: url.searchParams.get("force") === "1" })) });
         } catch (error) {
           return jsonResponse({ ok: false, error: toErrorMessage(error) }, 500);
         }
@@ -77,7 +88,11 @@ export function createWorker(overrides: Partial<RuntimeDeps> = {}) {
   };
 }
 
-export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Promise<{ itemCount: number; aiAnalysis: boolean; detailedReportUrl?: string }> {
+export async function runDigest(
+  env: Env,
+  deps: RuntimeDeps = defaultDeps,
+  options: { forceLatest?: boolean } = {},
+): Promise<{ itemCount: number; aiAnalysis: boolean; detailedReportUrl?: string }> {
   const config = parseConfig(env);
   const now = deps.now();
   const state = await deps.getRuntimeState(env.RUNTIME_KV);
@@ -85,7 +100,8 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
   try {
     const { candidates, items } = await deps.fetchTruthSocialPosts(config, {
       hasProcessedPost: (id) => deps.hasProcessedPost(env.BRIEF_DB, id),
-      now: () => now
+      now: () => now,
+      forceLatest: options.forceLatest === true,
     });
 
     if (items.length === 0) {
@@ -130,9 +146,11 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
 
     const report = buildDetailedReport(summary, mergeReportItems(items, digestItems), now);
     const uploaded = await deps.uploadDetailedReportToCos(config, report, now);
+    await saveDetailedReportCopy(env.RUNTIME_KV, uploaded.key, report);
+    const publicReportUrl = buildDetailedReportPublicUrl(config.workerPublicBaseUrl, uploaded.key);
     const message = aiAnalysis
-      ? buildDigestMessage(summary, hotTerms.length > 0 ? hotTerms : computeHotTerms(digestItems), digestItems.map((item, index) => ({ ...item, publishedAt: items[index]?.publishedAt })), uploaded.url, modelLabel)
-      : buildFallbackMessage(digestItems, uploaded.url, modelLabel);
+      ? buildDigestMessage(summary, hotTerms.length > 0 ? hotTerms : computeHotTerms(digestItems), digestItems.map((item, index) => ({ ...item, publishedAt: items[index]?.publishedAt })), publicReportUrl, modelLabel)
+      : buildFallbackMessage(digestItems, publicReportUrl, modelLabel);
 
     const runId = crypto.randomUUID();
     const digestRun: Omit<DigestRunRecord, "feishuPushOk"> = {
@@ -145,7 +163,7 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
       messageText: message,
       analysisText: summary,
       reportObjectKey: uploaded.key,
-      reportUrl: uploaded.url,
+      reportUrl: publicReportUrl,
       sourceItemsJson: JSON.stringify(items)
     };
 
@@ -159,21 +177,23 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
       throw error;
     }
 
-    for (const item of items) {
-      const record: ProcessedPostRecord = {
-        id: item.id,
-        canonicalUrl: item.canonicalUrl,
-        publishedAt: item.publishedAt,
-        contentFingerprint: await sha256Hex(`${item.canonicalUrl}\n${item.publishedAt}\n${item.bodyText}`),
-        discoveredAt: now.toISOString(),
-        processedAt: now.toISOString(),
-        sourcePayloadJson: JSON.stringify(item)
-      };
-      await deps.insertProcessedPost(env.BRIEF_DB, record);
+    if (!options.forceLatest) {
+      for (const item of items) {
+        const record: ProcessedPostRecord = {
+          id: item.id,
+          canonicalUrl: item.canonicalUrl,
+          publishedAt: item.publishedAt,
+          contentFingerprint: await sha256Hex(`${item.canonicalUrl}\n${item.publishedAt}\n${item.bodyText}`),
+          discoveredAt: now.toISOString(),
+          processedAt: now.toISOString(),
+          sourcePayloadJson: JSON.stringify(item)
+        };
+        await deps.insertProcessedPost(env.BRIEF_DB, record);
+      }
     }
 
     let nextState = recordSuccess(state, now);
-    if (shouldSendHeartbeat(nextState, config.heartbeatIntervalHours, now)) {
+    if (!options.forceLatest && shouldSendHeartbeat(nextState, config.heartbeatIntervalHours, now)) {
       await deps.pushToFeishu(config, buildHeartbeatMessage(nextState, config.heartbeatIntervalHours));
       nextState = { ...nextState, lastHeartbeatAt: now.toISOString() };
     }
@@ -182,7 +202,7 @@ export async function runDigest(env: Env, deps: RuntimeDeps = defaultDeps): Prom
     return {
       itemCount: items.length,
       aiAnalysis,
-      detailedReportUrl: uploaded.url
+      detailedReportUrl: publicReportUrl
     };
   } catch (error) {
     let nextState = recordFailure(state, toErrorMessage(error), now);
@@ -234,6 +254,11 @@ function mergeReportItems(items: TruthNormalizedPost[], digestItems: LlmDigestIt
 
 function jsonResponse(data: Record<string, unknown>, status = 200): Response {
   return Response.json(data, { status });
+}
+
+export function queueManualTrigger(ctx: ExecutionContext, task: () => Promise<unknown>): Response {
+  ctx.waitUntil(task());
+  return jsonResponse({ ok: true, queued: true }, 202);
 }
 
 function toErrorMessage(error: unknown): string {

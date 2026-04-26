@@ -4,6 +4,7 @@ MANUAL_TRIGGER_TOKEN=replace-me
 LLM_BASE_URL=
 LLM_API_KEY=
 LLM_MODEL=@cf/meta/llama-3.1-8b-instruct
+WORKER_PUBLIC_BASE_URL=https://trump-truth-social-digest-worker.5frhvfq5s2.workers.dev
 TENCENT_COS_SECRET_ID=replace-me
 TENCENT_COS_SECRET_KEY=replace-me
 TENCENT_COS_BUCKET=replace-me

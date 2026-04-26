@@ -27,7 +27,10 @@ export interface TruthSocialFetchDeps {
   hasProcessedPost: (id: string) => Promise<boolean>;
   feedLoader?: (feedUrl: string) => Promise<string>;
   now?: () => Date;
+  forceLatest?: boolean;
 }
+
+const FORCE_LATEST_MAX_POSTS = 1;
 
 export function extractCandidatePosts(xml: string): TruthCandidatePost[] {
   const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
@@ -75,14 +78,16 @@ export async function fetchTruthSocialPosts(config: TruthSocialConfig, deps: Tru
   const items: TruthNormalizedPost[] = [];
   const now = deps.now?.() ?? new Date();
   const cutoff = now.getTime() - config.fetchWindowHours * 60 * 60 * 1000;
+  const forceLatest = deps.forceLatest === true;
+  const maxItems = forceLatest ? Math.min(config.maxPostsPerDigest, FORCE_LATEST_MAX_POSTS) : config.maxPostsPerDigest;
 
   for (const item of normalized) {
     if (!item.isOriginal) continue;
     const publishedAtMs = Date.parse(item.publishedAt);
-    if (!Number.isNaN(publishedAtMs) && publishedAtMs < cutoff) continue;
-    if (await deps.hasProcessedPost(item.id)) continue;
+    if (!forceLatest && !Number.isNaN(publishedAtMs) && publishedAtMs < cutoff) continue;
+    if (!forceLatest && await deps.hasProcessedPost(item.id)) continue;
     items.push(item);
-    if (items.length >= config.maxPostsPerDigest) break;
+    if (items.length >= maxItems) break;
   }
 
   return { candidates, items };
