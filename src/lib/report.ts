@@ -84,8 +84,8 @@ export function buildDetailedReport(summary: string, items: DetailedReportItem[]
 `;
 }
 
-export function buildDetailedReportObjectKey(now = new Date()): string {
-  const stamp = [
+function buildUtcStamp(now = new Date()): string {
+  return [
     now.getUTCFullYear(),
     String(now.getUTCMonth() + 1).padStart(2, "0"),
     String(now.getUTCDate()).padStart(2, "0"),
@@ -93,6 +93,13 @@ export function buildDetailedReportObjectKey(now = new Date()): string {
     String(now.getUTCMinutes()).padStart(2, "0"),
     String(now.getUTCSeconds()).padStart(2, "0")
   ].join("");
-
-  return `${PROJECT_PREFIX}/${stamp}.html`;
 }
+
+export function buildDetailedReportObjectKey(now = new Date()): string {
+  return `${PROJECT_PREFIX}/${buildUtcStamp(now)}.html`;
+}
+
+export function buildFeishuMessageObjectKey(now = new Date()): string {
+  return `${PROJECT_PREFIX}/feishu-messages/${buildUtcStamp(now)}.txt`;
+}
+

@@ -6,7 +6,7 @@ import { buildDetailedReport } from "./lib/report";
 import { buildDetailedReportPublicUrl, maybeHandleDetailedReportRequest, saveDetailedReportCopy } from "./lib/report-storage";
 import { getRuntimeState, recordFailure, recordSuccess, setRuntimeState, shouldSendFailureAlert, shouldSendHeartbeat, type RuntimeState } from "./lib/runtime";
 import { sha256Hex } from "./lib/value";
-import { uploadDetailedReportToCos } from "./services/cos";
+import { uploadDetailedReportToCos, uploadFeishuMessageToCos } from "./services/cos";
 import { pushToFeishu } from "./services/feishu";
 import { analyzePostsWithLLM, parseLlmDigestResponse, type LlmDigestItem } from "./services/llm";
 import { fetchTruthSocialPosts, type TruthNormalizedPost } from "./services/truthsocial";
@@ -59,8 +59,7 @@ export function createWorker(overrides: Partial<RuntimeDeps> = {}) {
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
         return jsonResponse(await buildHealthResponse(env, deps));
       }
-
-      if (request.method === "POST" && url.pathname === "/admin/trigger") {
+        if (request.method === "POST" && url.pathname === "/admin/trigger") {
         const config = parseConfig(env);
         const auth = authorizeAdminRequest(request, config.manualTriggerToken);
         if (!auth.ok) {
@@ -170,6 +169,7 @@ export async function runDigest(
     await deps.insertDigestRun(env.BRIEF_DB, digestRun);
 
     try {
+      await uploadFeishuMessageToCos(config, message, now);
       await deps.pushToFeishu(config, message);
       await deps.markDigestRunPushed(env.BRIEF_DB, runId, true);
     } catch (error) {

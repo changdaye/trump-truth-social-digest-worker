@@ -17,7 +17,6 @@ export function parseConfig(env: Env): BriefConfig {
     cosBucket: env.TENCENT_COS_BUCKET.trim(),
     cosRegion: env.TENCENT_COS_REGION.trim(),
     cosBaseUrl: env.TENCENT_COS_BASE_URL?.trim() || `https://${env.TENCENT_COS_BUCKET.trim()}.cos.${env.TENCENT_COS_REGION.trim()}.myqcloud.com`,
-
     workerPublicBaseUrl: env.WORKER_PUBLIC_BASE_URL?.trim() || "https://trump-truth-social-digest-worker.5frhvfq5s2.workers.dev",
     llmBaseUrl: env.LLM_BASE_URL?.trim() ?? "",
     llmApiKey: env.LLM_API_KEY?.trim() ?? "",
@@ -29,6 +28,6 @@ export function parseConfig(env: Env): BriefConfig {
     maxPostsPerDigest: toInt(env.MAX_POSTS_PER_DIGEST, 30, 1),
     failureAlertThreshold: toInt(env.FAILURE_ALERT_THRESHOLD, 1, 1),
     failureAlertCooldownMinutes: toInt(env.FAILURE_ALERT_COOLDOWN_MINUTES, 180, 1),
-    trumpTruthFeedUrl: env.TRUMP_TRUTH_FEED_URL?.trim() || "https://trumpstruth.org/feed"
+    trumpTruthFeedUrl: env.TRUMP_TRUTH_FEED_URL?.trim() || "https://trumpstruth.org/feed",
   };
 }
