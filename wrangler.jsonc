@@ -11,7 +11,7 @@
 	},
 	"triggers": {
 		"crons": [
-			"0 */2 * * *"
+			"0 0 * * *"
 		]
 	},
 	"kv_namespaces": [
@@ -33,10 +33,10 @@
 		}
 	],
 	"vars": {
-		"DIGEST_INTERVAL_HOURS": "2",
+		"DIGEST_INTERVAL_HOURS": "24",
 		"HEARTBEAT_INTERVAL_HOURS": "24",
 		"REQUEST_TIMEOUT_MS": "15000",
-		"FETCH_WINDOW_HOURS": "2",
+		"FETCH_WINDOW_HOURS": "24",
 		"MAX_POSTS_PER_DIGEST": "30",
 		"LLM_MODEL": "gpt-5.4",
 		"WORKER_PUBLIC_BASE_URL": "https://trump-truth-social-digest-worker.5frhvfq5s2.workers.dev",
